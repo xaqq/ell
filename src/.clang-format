@@ -3,7 +3,7 @@ Language: Cpp
 Standard: Cpp11
 BreakBeforeBraces: Allman
 Cpp11BracedListStyle: true
-ColumnLimit: 85
+ColumnLimit: 90
 IndentWidth: 2
 UseTab: Never
 # Misc

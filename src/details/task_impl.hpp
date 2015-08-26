@@ -73,63 +73,11 @@ namespace ell
       {
         using ReturnType = decltype(callable());
         auto ret         = TaskImplPtr(new TaskImpl());
-        auto promise     = new std::promise<ReturnType>();
 
-        ret->promise_ = TypeErasedUniquePtr(
-            reinterpret_cast<uint8_t *>(promise), [](uint8_t *ptr)
-            {
-              delete (reinterpret_cast<std::promise<ReturnType> *>(ptr));
-            });
-
-        // Allocated space for a future<T> and then move the promise's future
-        // into our future erased container
-        auto future  = new std::future<ReturnType>();
-        *future      = std::move(promise->get_future());
-        ret->future_ = TypeErasedUniquePtr(
-            reinterpret_cast<uint8_t *>(future), [](uint8_t *ptr)
-            {
-              delete (reinterpret_cast<std::future<ReturnType> *>(ptr));
-            });
-
-        setup_coroutine(ret, callable);
+        ret->setup_promise<ReturnType>();
+        ret->setup_future<ReturnType>();
+        ret->setup_coroutine(callable);
         return ret;
-      }
-
-      template <typename Callable>
-      static void setup_coroutine(TaskImplPtr task, const Callable &callable)
-      {
-        // We must now setup the boost coroutine object.
-        // We will wrap the user callable into a coroutine, adding some
-        // code to handles return values, exceptions, and initialization.
-        task->coroutine_ = CoroutineCall(
-            [&](CoroutineYield &yield)
-            {
-              // Perform some initialization task, then yield.
-
-              // Save a pointer to self while the lambda capture has a correct
-              // reference to "task".
-              TaskImpl *self =
-                  task.get(); // While the coroutine is alive, the TaskImpl obj
-              // is alive too.
-              self->yield_ = &yield;
-              yield();
-
-              // We'll be there after the loop scheduler run the Task
-              // for the first time.
-              auto promise = reinterpret_cast<std::promise<decltype(callable())> *>(
-                  self->promise_.get());
-              try
-              {
-                promise->set_value(callable());
-              }
-              catch (const std::exception &)
-              {
-                promise->set_exception(std::current_exception());
-              }
-            },
-            boost::coroutines::attributes(), valgrind_stack_allocator());
-        // Run the coroutine to perform initialization task.
-        task->coroutine_();
       }
 
       /**
@@ -153,14 +101,97 @@ namespace ell
       }
 
     private:
+      /**
+       * Configure the internal promise.
+       */
+      template <typename ReturnType>
+      void setup_promise()
+      {
+        using PromiseType = std::promise<ReturnType>;
+        // Make sure the storage optimization we do can be used and is correct.
+        static_assert(
+            sizeof(std::promise<ReturnType>) == sizeof(std::promise<int>) &&
+                alignof(std::promise<ReturnType>) == alignof(std::promise<int>),
+            "Cannot use buffer optimisation. Assertion about promise memory layout "
+            "are wrong.");
+
+        auto promise = new (&promise_storage_) PromiseType();
+        promise_ =
+            TypeErasedUniquePtr(reinterpret_cast<uint8_t *>(promise), [](uint8_t *ptr)
+                                {
+                                  reinterpret_cast<PromiseType *>(ptr)->~PromiseType();
+                                });
+      }
+
+      /**
+       * Configure the internal future object.
+       */
+      template <typename ReturnType>
+      void setup_future()
+      {
+        using FutureType = std::future<ReturnType>;
+        static_assert(sizeof(std::future<ReturnType>) == sizeof(std::future<int>) &&
+                          alignof(std::future<ReturnType>) == alignof(std::future<int>),
+                      "Cannot use buffer optimisation. Assertion about future "
+                      "memory layout are wrong.");
+        assert(promise_);
+
+        auto future = new (&future_storage_) FutureType();
+        *future = std::move(
+            reinterpret_cast<std::promise<ReturnType> *>(promise_.get())->get_future());
+        future_ =
+            TypeErasedUniquePtr(reinterpret_cast<uint8_t *>(future), [](uint8_t *ptr)
+                                {
+                                  reinterpret_cast<FutureType *>(ptr)->~FutureType();
+                                });
+      }
+
+      /**
+       * Create the coroutine object and configure it to run the Callable.
+       */
+      template <typename Callable>
+      void setup_coroutine(const Callable &callable)
+      {
+        // We must now setup the boost coroutine object.
+        // We will wrap the user callable into a coroutine, adding some
+        // code to handles return values, exceptions, and initialization.
+        coroutine_ = CoroutineCall(
+            [&](CoroutineYield &yield)
+            {
+              // Perform some initialization task, then yield.
+
+              // Save a pointer to self while the lambda capture has a correct
+              // reference to "task".
+              TaskImpl *self = this; // While the coroutine is alive, the TaskImpl
+                                     // obj is alive too.
+              self->yield_ = &yield;
+              yield();
+
+              // We'll be there after the loop scheduler run the Task
+              // for the first time.
+              auto promise = reinterpret_cast<std::promise<decltype(callable())> *>(
+                  self->promise_.get());
+              try
+              {
+                promise->set_value(callable());
+              }
+              catch (const std::exception &)
+              {
+                promise->set_exception(std::current_exception());
+              }
+            },
+            boost::coroutines::attributes(), valgrind_stack_allocator());
+        // Run the coroutine to perform initialization task.
+        coroutine_();
+      }
+
       using TypeErasedUniquePtr = std::unique_ptr<uint8_t, void (*)(uint8_t *)>;
 
       TypeErasedUniquePtr promise_;
       TypeErasedUniquePtr future_;
 
-      using CoroutineCall = boost::coroutines::symmetric_coroutine<void>::call_type;
-      using CoroutineYield =
-          boost::coroutines::symmetric_coroutine<void>::yield_type;
+      using CoroutineCall  = boost::coroutines::symmetric_coroutine<void>::call_type;
+      using CoroutineYield = boost::coroutines::symmetric_coroutine<void>::yield_type;
 
       /**
        * The user-code that will be run is wrapped into a Coroutine object.
@@ -171,6 +202,19 @@ namespace ell
        * A pointer to the yield object that the boost coroutine gives us.
        */
       CoroutineYield *yield_;
+
+      /**
+       * Storage we use for the promise object.
+       * We use placement new to this memory location for performance reason.
+       */
+      std::aligned_storage<sizeof(std::promise<int>), alignof(std::promise<int>)>::type
+          promise_storage_;
+
+      /**
+       * Ditto for future.
+       */
+      std::aligned_storage<sizeof(std::future<int>), alignof(std::future<int>)>::type
+          future_storage_;
 
     public:
       /**

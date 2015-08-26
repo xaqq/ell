@@ -84,8 +84,7 @@ namespace ell
       void move_tasks()
       {
         // add new task to the active queue
-        active_tasks_.insert(active_tasks_.end(), new_tasks_.begin(),
-                             new_tasks_.end());
+        active_tasks_.insert(active_tasks_.end(), new_tasks_.begin(), new_tasks_.end());
         new_tasks_.clear();
 
         // Add inactive task to inactive queue
@@ -93,28 +92,28 @@ namespace ell
                                new_inactive_tasks_.end());
 
         // Remove new inactive task from the active queue
-        active_tasks_.erase(
-            std::remove_if(active_tasks_.begin(), active_tasks_.end(),
-                           [&](TaskImplPtr t)
-                           {
-                             return std::find(new_inactive_tasks_.begin(),
-                                              new_inactive_tasks_.end(),
-                                              t) != new_inactive_tasks_.end();
-                           }),
-            active_tasks_.end());
+        active_tasks_.erase(std::remove_if(active_tasks_.begin(), active_tasks_.end(),
+                                           [&](TaskImplPtr t)
+                                           {
+                                             return std::find(new_inactive_tasks_.begin(),
+                                                              new_inactive_tasks_.end(),
+                                                              t) !=
+                                                    new_inactive_tasks_.end();
+                                           }),
+                            active_tasks_.end());
 
         new_inactive_tasks_.clear();
 
         // remove the completed task from the active queue.
-        active_tasks_.erase(
-            std::remove_if(active_tasks_.begin(), active_tasks_.end(),
-                           [&](TaskImplPtr t)
-                           {
-                             return std::find(completed_tasks_.begin(),
-                                              completed_tasks_.end(),
-                                              t) != completed_tasks_.end();
-                           }),
-            active_tasks_.end());
+        active_tasks_.erase(std::remove_if(active_tasks_.begin(), active_tasks_.end(),
+                                           [&](TaskImplPtr t)
+                                           {
+                                             return std::find(completed_tasks_.begin(),
+                                                              completed_tasks_.end(),
+                                                              t) !=
+                                                    completed_tasks_.end();
+                                           }),
+                            active_tasks_.end());
       }
 
       /**
