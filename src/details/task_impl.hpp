@@ -86,7 +86,7 @@ namespace ell
        */
       void resume()
       {
-        std::cout << "Resuming task !" << std::endl;
+        // std::cout << "Resuming task !" << std::endl;
         coroutine_();
       }
 
@@ -110,8 +110,8 @@ namespace ell
         using PromiseType = std::promise<ReturnType>;
         // Make sure the storage optimization we do can be used and is correct.
         static_assert(
-            sizeof(std::promise<ReturnType>) == sizeof(std::promise<int>) &&
-                alignof(std::promise<ReturnType>) == alignof(std::promise<int>),
+            sizeof(PromiseType) == sizeof(std::promise<int>) &&
+                alignof(PromiseType) == alignof(std::promise<int>),
             "Cannot use buffer optimisation. Assertion about promise memory layout "
             "are wrong.");
 
@@ -130,8 +130,8 @@ namespace ell
       void setup_future()
       {
         using FutureType = std::future<ReturnType>;
-        static_assert(sizeof(std::future<ReturnType>) == sizeof(std::future<int>) &&
-                          alignof(std::future<ReturnType>) == alignof(std::future<int>),
+        static_assert(sizeof(FutureType) == sizeof(std::future<int>) &&
+                          alignof(FutureType) == alignof(std::future<int>),
                       "Cannot use buffer optimisation. Assertion about future "
                       "memory layout are wrong.");
         assert(promise_);

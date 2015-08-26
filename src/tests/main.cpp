@@ -4,7 +4,10 @@
 int tata()
 {
     std::cout << "~~Tata~~" << std::endl;
-    ell::yield();
+    for (int i = 0; i < 2'000'000; i++)
+    {
+        ell::yield();
+    }
     std::cout << "Continuing tata..." << std::endl;
     return 1337;
 }

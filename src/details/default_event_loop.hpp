@@ -59,7 +59,9 @@ namespace ell
               mark_active(child_task);
           }
           else
-            std::cout << "Task NOT complete" << std::endl;
+          {
+            //  std::cout << "Task NOT complete" << std::endl;
+          }
         }
       }
 
