@@ -6,6 +6,7 @@
 #include <iostream>
 #include <boost/coroutine/coroutine.hpp>
 #include "ell_fwd.hpp"
+#include "valgrind_allocator.hpp"
 
 namespace ell
 {
@@ -91,8 +92,6 @@ namespace ell
             });
 
         setup_coroutine(ret, callable);
-        // Run the coroutine to perform initialization task.
-        ret->coroutine_();
         return ret;
       }
 
@@ -107,9 +106,11 @@ namespace ell
             {
               // Perform some initialization task, then yield.
 
-              // First save a pointer to self, while we can rely on
-              // the lambda capture (we wont after first yield())
-              TaskImplPtr self = task;
+              // Save a pointer to self while the lambda capture has a correct
+              // reference to "task".
+              TaskImpl *self =
+                  task.get(); // While the coroutine is alive, the TaskImpl obj
+              // is alive too.
               self->yield_ = &yield;
               yield();
 
@@ -125,7 +126,10 @@ namespace ell
               {
                 promise->set_exception(std::current_exception());
               }
-            });
+            },
+            boost::coroutines::attributes(), valgrind_stack_allocator());
+        // Run the coroutine to perform initialization task.
+        task->coroutine_();
       }
 
       /**

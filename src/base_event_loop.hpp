@@ -13,6 +13,8 @@ namespace ell
   class BaseEventLoop
   {
   public:
+    virtual ~BaseEventLoop() = default;
+
     /**
      * Arrange for a callback to be called as soon as possible.
      * The callback is called after call_soon() returns, when control returns to the
@@ -52,7 +54,7 @@ namespace ell
     template <typename Callable>
     auto yield(const Callable &callable) -> decltype(callable())
     {
-      static_cast<EventLoopImpl *>(this)->yield_impl(callable);
+      return static_cast<EventLoopImpl *>(this)->yield_impl(callable);
     }
   };
 }
