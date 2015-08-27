@@ -10,7 +10,7 @@ int count_to_some_number()
 {
     std::cout << "~~Tata~~" << std::endl;
     int count = 0;
-    for (int i = 0; i < 10000000; i++)
+    for (int i = 0; i < 100000; i++)
     {
         count += ell::yield(incr);
     }

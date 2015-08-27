@@ -10,6 +10,14 @@ namespace ell
 {
   namespace details
   {
+    struct CoroutineStackAllocator
+    {
+      static boost::pool<> &pool()
+      {
+        static boost::pool<> p(1024 * 4);
+        return p;
+      }
+    };
     /**
      * Implements the concept of a stack-allocator.
      * If valgrind was found during the build, this allocator
@@ -27,7 +35,16 @@ namespace ell
     public:
       void allocate(boost::coroutines::stack_context &sc, std::size_t size)
       {
-        allocator.allocate(sc, size);
+        if (size == 1024 * 4)
+        {
+          auto limit = CoroutineStackAllocator::pool().malloc();
+          sc.size    = size;
+          sc.sp      = static_cast<char *>(limit) + sc.size;
+        }
+        else
+        {
+          allocator.allocate(sc, size);
+        }
 #ifdef ELL_HAVE_VALGRIND
         auto res = stack_ids.insert(std::make_pair(
             sc.sp, VALGRIND_STACK_REGISTER(sc.sp, (((char *)sc.sp) - sc.size))));
@@ -44,7 +61,15 @@ namespace ell
         VALGRIND_STACK_DEREGISTER(id->second);
         stack_ids.erase(id);
 #endif
-        allocator.deallocate(sc);
+        if (sc.size == 1024 * 4)
+        {
+          void *limit = static_cast<char *>(sc.sp) - sc.size;
+          CoroutineStackAllocator::pool().free(limit);
+        }
+        else
+        {
+          allocator.deallocate(sc);
+        }
       }
     };
   }

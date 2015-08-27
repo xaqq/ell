@@ -169,8 +169,9 @@ namespace ell
       template <typename Callable>
       void setup_coroutine(const Callable &callable)
       {
-        auto attr =
-            boost::coroutines::attributes(); //(boost::coroutines::no_stack_unwind);
+        auto attr = boost::coroutines::attributes();
+        attr.size = 1024 * 4;
+
         // We must now setup the boost coroutine object.
         // We will wrap the user callable into a coroutine, adding some
         // code to handles return values, exceptions, and initialization.
