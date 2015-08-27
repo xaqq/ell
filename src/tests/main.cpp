@@ -4,7 +4,7 @@
 int tata()
 {
     std::cout << "~~Tata~~" << std::endl;
-    for (int i = 0; i < 2'000'000; i++)
+    for (int i = 0; i < 2000000; i++)
     {
         ell::yield();
     }

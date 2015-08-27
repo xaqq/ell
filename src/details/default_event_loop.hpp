@@ -53,7 +53,7 @@ namespace ell
 
           if (task->is_complete())
           {
-            std::cout << "Task complete !" << std::endl;
+            // std::cout << "Task complete !" << std::endl;
             completed_tasks_.push_back(task);
             for (auto &child_task : task->dependants_)
               mark_active(child_task);
@@ -116,6 +116,7 @@ namespace ell
                                                     completed_tasks_.end();
                                            }),
                             active_tasks_.end());
+        completed_tasks_.clear();
       }
 
       /**

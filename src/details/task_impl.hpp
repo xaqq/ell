@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iostream>
 #include <boost/coroutine/coroutine.hpp>
+#include <boost/pool/pool.hpp>
 #include "ell_fwd.hpp"
 #include "valgrind_allocator.hpp"
 
@@ -12,6 +13,15 @@ namespace ell
 {
   namespace details
   {
+
+    struct Foo
+    {
+      static boost::pool<> &pool()
+      {
+        static boost::pool<> p(200);
+        return p;
+      }
+    };
     /**
      * The class representing a user task from inside the library.
      *
@@ -72,7 +82,14 @@ namespace ell
       static TaskImplPtr create(const Callable &callable)
       {
         using ReturnType = decltype(callable());
-        auto ret         = TaskImplPtr(new TaskImpl());
+        auto mem         = Foo::pool().malloc();
+        auto task        = new (mem) TaskImpl();
+
+        auto ret = TaskImplPtr(task, [](TaskImpl *ptr)
+                               {
+                                 ptr->~TaskImpl();
+                                 Foo::pool().free(ptr);
+                               });
 
         ret->setup_promise<ReturnType>();
         ret->setup_future<ReturnType>();
@@ -152,6 +169,8 @@ namespace ell
       template <typename Callable>
       void setup_coroutine(const Callable &callable)
       {
+        auto attr =
+            boost::coroutines::attributes(); //(boost::coroutines::no_stack_unwind);
         // We must now setup the boost coroutine object.
         // We will wrap the user callable into a coroutine, adding some
         // code to handles return values, exceptions, and initialization.
@@ -180,7 +199,9 @@ namespace ell
                 promise->set_exception(std::current_exception());
               }
             },
-            boost::coroutines::attributes(), valgrind_stack_allocator());
+            attr, valgrind_stack_allocator());
+
+        // boost::coroutines::attributes(), valgrind_stack_allocator());
         // Run the coroutine to perform initialization task.
         coroutine_();
       }
