@@ -2,7 +2,7 @@
 
 #include "ell.hpp"
 #include "base_event_loop.hpp"
-#include "details/task_impl.hpp"
+#include "details/task_builder.hpp"
 #include <iostream>
 
 namespace ell
@@ -15,12 +15,12 @@ namespace ell
       template <typename Callable>
       auto call_soon_impl(const Callable &callable) -> TaskPtr<decltype(callable())>
       {
-        using CallableReturnType = decltype(callable());
-        auto task_impl           = TaskImpl::create(callable);
-        auto task_user           = Task<CallableReturnType>::create(task_impl);
+        using ReturnType         = decltype(callable());
+        TaskPtr<ReturnType> task = builder_.build(callable);
+        TaskImplPtr impl(task, &task->impl_);
 
-        new_tasks_.push_back(task_impl);
-        return task_user;
+        new_tasks_.push_back(impl);
+        return task;
       }
 
       template <typename T>
@@ -28,7 +28,7 @@ namespace ell
       {
         set_current_event_loop(this);
 
-        while (!task->impl_->is_complete())
+        while (!task->impl_.is_complete())
         {
           schedule();
         }
@@ -68,13 +68,12 @@ namespace ell
       template <typename Callable>
       auto yield_impl(const Callable &callable) -> decltype(callable())
       {
-        auto user_task = call_soon(callable);
+        auto task = call_soon(callable);
 
-        user_task->impl_->dependants_.push_back(current_task_);
+        task->impl_.dependants_.push_back(current_task_);
         new_inactive_tasks_.push_back(current_task_);
         current_task_->suspend();
-
-        return user_task->get_result();
+        return task->get_result();
       }
 
       /**
@@ -138,6 +137,11 @@ namespace ell
       using TaskQueue = std::vector<TaskImplPtr>;
 
       /**
+       * Must be first attribute, so it is destroyed last.
+       */
+      TaskBuilder builder_;
+
+      /**
        * Task that can (and will) run.
        */
       TaskQueue active_tasks_;
@@ -163,6 +167,7 @@ namespace ell
       TaskQueue completed_tasks_;
 
       TaskImplPtr current_task_;
+
 
       friend class BaseEventLoop;
     };

@@ -20,6 +20,7 @@ int count_to_some_number()
 
 int main()
 {
+  std::cout << "Size of TaskImpl: " << sizeof(ell::details::TaskImpl) << std::endl;
   ell::EventLoop l;
   auto task = l.call_soon(count_to_some_number);
   l.run_until_complete(task);

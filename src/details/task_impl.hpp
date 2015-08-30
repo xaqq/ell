@@ -14,15 +14,6 @@ namespace ell
 {
   namespace details
   {
-
-    struct Foo
-    {
-      static boost::pool<> &pool()
-      {
-        static boost::pool<> p(200);
-        return p;
-      }
-    };
     /**
      * The class representing a user task from inside the library.
      *
@@ -39,14 +30,20 @@ namespace ell
      */
     class TaskImpl
     {
-      TaskImpl() :
-              yield_(nullptr)
+    public:
+      template <typename Callable>
+      TaskImpl(const Callable &callable)
+          : yield_(nullptr)
       {
+        setup_coroutine(callable);
       }
 
       TaskImpl(const TaskImpl &) = delete;
+      TaskImpl(TaskImpl &&) = delete;
 
-    public:
+      TaskImpl &operator=(const TaskImpl &) = delete;
+      TaskImpl &operator=(TaskImpl &&) = delete;
+
       /**
        * Returns the result of the task.
        */
@@ -54,29 +51,6 @@ namespace ell
       T get_result()
       {
         return result_.get<T>();
-      }
-
-      /**
-       * Create a new TaskImpl object, wrap it into a shared pointer
-       * and returns it.
-       *
-       * It create the correct std::promise<T> and std::future<T> and move them
-       * into type-erased unique_ptr with proper deleter.
-       */
-      template <typename Callable>
-      static TaskImplPtr create(const Callable &callable)
-      {
-        auto mem         = Foo::pool().malloc();
-        auto task        = new (mem) TaskImpl();
-
-        auto ret = TaskImplPtr(task, [](TaskImpl *ptr)
-                               {
-                                 ptr->~TaskImpl();
-                                 Foo::pool().free(ptr);
-                               });
-
-        ret->setup_coroutine(callable);
-        return ret;
       }
 
       /**
@@ -154,6 +128,7 @@ namespace ell
       CoroutineYield *yield_;
 
       ResultHolder result_;
+
     public:
       /**
        * List of task that depends on this task.

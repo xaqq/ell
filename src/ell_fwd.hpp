@@ -13,7 +13,11 @@ namespace ell
   namespace details
   {
     class TaskImpl;
-
     using TaskImplPtr = std::shared_ptr<TaskImpl>;
+    class DefaultEventLoop;
+
+    class TaskBuilder;
   }
+
+  using EventLoop = details::DefaultEventLoop;
 }
