@@ -3,7 +3,8 @@
 #include "ell.hpp"
 #include "base_event_loop.hpp"
 #include "details/task_builder.hpp"
-#include "task_sleep.hpp"
+#include "condition_variable"
+#include "details/task_sleep.hpp"
 #include <iostream>
 
 namespace ell
@@ -12,6 +13,15 @@ namespace ell
   {
     class DefaultEventLoop : public BaseEventLoop<DefaultEventLoop>
     {
+    public:
+      /**
+       * Should not be used by end-user.
+       */
+      TaskImplPtr current_task()
+      {
+        return current_task_;
+      }
+
     private:
       template <typename Callable>
       auto call_soon_impl(const Callable &callable) -> TaskPtr<decltype(callable())>
@@ -176,6 +186,7 @@ namespace ell
         std::this_thread::sleep_until(shortest);
       }
 
+    public:
       /**
        * Mark a task as active.
        */
@@ -192,6 +203,12 @@ namespace ell
         new_tasks_.push_back(task);
       }
 
+      void mark_inactive(const TaskImplPtr &task)
+      {
+        new_inactive_tasks_.push_back(task);
+      }
+
+    private:
       using TaskQueue = std::vector<TaskImplPtr>;
 
       /**

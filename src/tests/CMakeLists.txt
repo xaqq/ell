@@ -33,4 +33,6 @@ endfunction()
 add_gtest_test(test_result_holder.cpp)
 add_gtest_test(test_task_builder.cpp)
 add_gtest_test(test_sleep.cpp)
+add_gtest_test(test_queue.cpp)
+add_gtest_test(test_condition_variable.cpp)
 

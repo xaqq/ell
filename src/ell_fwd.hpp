@@ -10,6 +10,9 @@ namespace ell
   template <typename T>
   using TaskPtr = std::shared_ptr<Task<T>>;
 
+  template <typename T>
+  class Queue;
+
   namespace details
   {
     class TaskImpl;
