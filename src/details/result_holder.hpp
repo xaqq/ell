@@ -31,11 +31,18 @@ namespace ell
       using TypeErasedUniquePtr = std::unique_ptr<uint8_t, void (*)(uint8_t *)>;
 
       ResultHolderImpl()
-          : obj_(nullptr, [](uint8_t *)
+          : valid_(false)
+          , obj_(nullptr, [](uint8_t *)
                  {
                  })
+
       {
       }
+
+      ResultHolderImpl(const ResultHolderImpl &) = delete;
+      ResultHolderImpl &operator=(const ResultHolderImpl &) = delete;
+      ResultHolderImpl(ResultHolderImpl &&) = delete;
+      ResultHolderImpl &operator=(ResultHolderImpl &&) = delete;
 
       /**
        * Store the given object into the result holder.
@@ -45,8 +52,12 @@ namespace ell
       template <typename T>
       void store(T &&obj)
       {
-        static_assert(alignof(T) <= align_, "Alignment isn't strong enough.");
         using ConcreteType = std::remove_const_t<std::remove_reference_t<T>>;
+        static_assert(alignof(T) <= align_, "Alignment isn't strong enough.");
+
+        assert(!valid_ && "A result has already been stored.");
+        valid_ = true;
+        obj_   = nullptr; // release what ever we were holding.
 
         if (sizeof(ConcreteType) <= buffer_size_)
         {
@@ -74,6 +85,9 @@ namespace ell
        */
       void store_exception(std::exception_ptr eptr)
       {
+        assert(!valid_ && "A result has already been stored.");
+        valid_ = true;
+
         assert(eptr_ == nullptr);
         eptr_ = eptr;
       }
@@ -85,6 +99,8 @@ namespace ell
       T get()
       {
         using ConcreteType = std::remove_reference_t<T>;
+        assert(valid_ && "No result stored.");
+        valid_ = false;
 
         if (eptr_)
           std::rethrow_exception(eptr_);
@@ -94,7 +110,13 @@ namespace ell
             std::forward<ConcreteType>(*(reinterpret_cast<ConcreteType *>(ptr))));
       }
 
+      bool valid() const
+      {
+        return valid_;
+      }
+
     private:
+      bool valid_;
       Storage storage_;
       std::exception_ptr eptr_;
       TypeErasedUniquePtr obj_;

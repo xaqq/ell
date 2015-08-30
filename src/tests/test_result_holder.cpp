@@ -1,9 +1,4 @@
-//
-// Created by xaqq on 8/30/15.
-//
-
 #include "details/result_holder.hpp"
-#include <cassert>
 #include <iostream>
 #include <gtest/gtest.h>
 
@@ -106,7 +101,7 @@ TEST(test_result_holder, store_int)
   int n = 42;
 
   rh.store(n);
-  ASSERT_EQ(rh.get<int>(), n);
+  ASSERT_EQ(n, rh.get<int>());
 }
 
 TEST(test_result_holder, store_int_rvalue)
@@ -114,7 +109,7 @@ TEST(test_result_holder, store_int_rvalue)
   ResultHolder rh;
 
   rh.store(1337);
-  ASSERT_EQ(rh.get<int>(), 1337);
+  ASSERT_EQ(1337, rh.get<int>());
 }
 
 TEST(test_result_holder, store_int_const_ref)
@@ -123,7 +118,56 @@ TEST(test_result_holder, store_int_const_ref)
   const int n = 42;
 
   rh.store(n);
-  ASSERT_EQ(rh.get<int>(), n);
+  ASSERT_EQ(n, rh.get<int>());
+}
+
+TEST(test_result_holder, valid)
+{
+  ResultHolder rh;
+  ResultHolder rh2;
+
+  ASSERT_FALSE(rh.valid());
+  ASSERT_FALSE(rh2.valid());
+
+  rh.store(21);
+  ASSERT_TRUE(rh.valid());
+
+  try
+  {
+    throw std::runtime_error("Oops");
+  }
+  catch (...)
+  {
+    rh2.store_exception(std::current_exception());
+  }
+  ASSERT_TRUE(rh2.valid());
+
+  rh.get<int>();
+  ASSERT_FALSE(rh.valid());
+
+  try
+  {
+    rh2.get<int>();
+  }
+  catch (...)
+  {
+  }
+  ASSERT_FALSE(rh.valid());
+}
+
+TEST(test_result_holder, store_exception)
+{
+  ResultHolder rh;
+
+  try
+  {
+    throw std::runtime_error("Oops");
+  }
+  catch (...)
+  {
+    rh.store_exception(std::current_exception());
+  }
+  ASSERT_THROW(rh.get<int>(), std::runtime_error);
 }
 
 int main(int ac, char **av)
