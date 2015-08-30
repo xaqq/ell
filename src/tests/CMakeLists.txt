@@ -14,8 +14,9 @@ add_executable(test_bench test_bench.cpp)
 target_include_directories(test_bench PRIVATE ${CMAKE_SOURCE_DIR} ${Boost_INCLUDE_DIR})
 target_link_libraries(test_bench ${Boost_LIBRARIES})
 
-
+enable_testing()
+find_package(GTest REQUIRED)
 add_executable(test_result_holder test_result_holder.cpp)
-target_include_directories(test_result_holder PRIVATE ${CMAKE_SOURCE_DIR} ${Boost_INCLUDE_DIR})
-target_link_libraries(test_result_holder ${Boost_LIBRARIES})
+target_include_directories(test_result_holder PRIVATE ${GTEST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR} ${Boost_INCLUDE_DIR})
+target_link_libraries(test_result_holder ${GTEST_BOTH_LIBRARIES} pthread)
 

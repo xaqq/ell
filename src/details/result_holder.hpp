@@ -46,7 +46,7 @@ namespace ell
       void store(T &&obj)
       {
         static_assert(alignof(T) <= align_, "Alignment isn't strong enough.");
-        using ConcreteType = std::remove_reference_t<T>;
+        using ConcreteType = std::remove_const_t<std::remove_reference_t<T>>;
 
         if (sizeof(ConcreteType) <= buffer_size_)
         {
