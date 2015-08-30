@@ -3,6 +3,7 @@
 #include "ell.hpp"
 #include "base_event_loop.hpp"
 #include "details/task_builder.hpp"
+#include "task_sleep.hpp"
 #include <iostream>
 
 namespace ell
@@ -45,6 +46,8 @@ namespace ell
       void schedule()
       {
         move_tasks();
+        wake_tasks();
+        try_to_sleep();
 
         for (auto &task : active_tasks_)
         {
@@ -71,9 +74,21 @@ namespace ell
         auto task = call_soon(callable);
 
         task->impl_.dependants_.push_back(current_task_);
+
         new_inactive_tasks_.push_back(current_task_);
         current_task_->suspend();
+
         return task->get_result();
+      }
+
+      template <typename Duration>
+      void sleep_current_task_impl(const Duration &duration)
+      {
+        TaskSleep task(current_task_, duration);
+        sleep_tasks_.push_back(task);
+
+        new_inactive_tasks_.push_back(current_task_);
+        current_task_->suspend();
       }
 
       /**
@@ -116,6 +131,49 @@ namespace ell
                                            }),
                             active_tasks_.end());
         completed_tasks_.clear();
+      }
+
+      /**
+       * Wake tasks that were sleeping if the time elapsed
+       */
+      void wake_tasks()
+      {
+        auto now = std::chrono::system_clock::now();
+        sleep_tasks_.erase(std::remove_if(sleep_tasks_.begin(), sleep_tasks_.end(),
+                                          [&](const TaskSleep &task)
+                                          {
+                                            if (now >= task.until())
+                                            {
+                                              mark_active(task.parent());
+                                              return true;
+                                            }
+                                            return false;
+                                          }),
+                           sleep_tasks_.end());
+      }
+
+      /**
+       * We may to able to really sleep the thread.
+       * If no task are active, we check the sleep_tasks_ and sleep for
+       * shortest duration.
+       */
+      void try_to_sleep()
+      {
+        using namespace std::chrono;
+
+        if (active_tasks_.size() > 0 || sleep_tasks_.size() == 0)
+          return;
+
+        system_clock::time_point shortest = system_clock::time_point::max();
+        for (auto &sleep_task : sleep_tasks_)
+        {
+          if (shortest > sleep_task.until())
+          {
+            shortest = sleep_task.until();
+          }
+        }
+
+        std::this_thread::sleep_until(shortest);
       }
 
       /**
@@ -167,6 +225,11 @@ namespace ell
       TaskQueue completed_tasks_;
 
       TaskImplPtr current_task_;
+
+      /**
+       * List of `TaskSleep`
+       */
+      std::vector<TaskSleep> sleep_tasks_;
 
 
       friend class BaseEventLoop;

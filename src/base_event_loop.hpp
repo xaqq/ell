@@ -49,6 +49,15 @@ namespace ell
     }
 
     /**
+     * Make the current task go to sleep for a certain duration.
+     */
+    template <typename Duration>
+    void sleep_current_task(const Duration &duration)
+    {
+      static_cast<EventLoopImpl *>(this)->sleep_current_task_impl(duration);
+    }
+
+    /**
      * Yield to another callable
      */
     template <typename Callable>

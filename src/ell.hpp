@@ -50,6 +50,12 @@ namespace ell
     details::get_current_event_loop()->suspend_current_task();
   }
 
+  template <typename Duration>
+  void sleep(const Duration &duration)
+  {
+    details::get_current_event_loop()->sleep_current_task(duration);
+  }
+
   /**
    * Yield to an other callable, waiting for this callable
    * to return in order to continue.
