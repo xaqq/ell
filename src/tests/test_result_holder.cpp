@@ -170,6 +170,14 @@ TEST(test_result_holder, store_exception)
   ASSERT_THROW(rh.get<int>(), std::runtime_error);
 }
 
+TEST(test_result_holder, store_void)
+{
+  ResultHolder rh;
+
+  rh.store();
+  rh.get<void>();
+}
+
 int main(int ac, char **av)
 {
   ::testing::InitGoogleTest(&ac, av);

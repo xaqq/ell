@@ -9,10 +9,20 @@ int dummy0()
   return 42;
 }
 
+void dummy1()
+{
+}
+
 TEST(test_result_holder, construct_int_task)
 {
   TaskBuilder builder;
   auto task = builder.build(dummy0);
+}
+
+TEST(test_result_holder, construct_void_task)
+{
+  TaskBuilder builder;
+  auto task = builder.build(dummy1);
 }
 
 int main(int ac, char **av)

@@ -80,6 +80,12 @@ namespace ell
         }
       }
 
+      void store(void)
+      {
+        assert(!valid_ && "Already notified");
+        valid_ = true;
+      }
+
       /**
        * Store an exception instead of a value.
        */
@@ -96,7 +102,7 @@ namespace ell
        * Return the object stored. Either construct-it by copy or by move.
        */
       template <typename T>
-      T get()
+      std::enable_if_t<!std::is_same<void, T>::value, T> get()
       {
         using ConcreteType = std::remove_reference_t<T>;
         assert(valid_ && "No result stored.");
@@ -108,6 +114,19 @@ namespace ell
         auto ptr = obj_.get();
         return ConcreteType(
             std::forward<ConcreteType>(*(reinterpret_cast<ConcreteType *>(ptr))));
+      }
+
+      /**
+       * Support for get<void>() for task returning `void`.
+       */
+      template <typename T>
+      std::enable_if_t<std::is_same<void, T>::value> get()
+      {
+        assert(valid_ && "No result stored.");
+        valid_ = false;
+
+        if (eptr_)
+          std::rethrow_exception(eptr_);
       }
 
       bool valid() const

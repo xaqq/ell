@@ -74,6 +74,21 @@ namespace ell
       }
 
     private:
+      template <typename Callable>
+      auto wrap_user_call(const Callable &callable)
+          -> std::enable_if_t<!std::is_same<void, decltype(callable())>::value, void>
+      {
+        result_.store(callable());
+      }
+
+      template <typename Callable>
+      auto wrap_user_call(const Callable &callable)
+          -> std::enable_if_t<std::is_same<void, decltype(callable())>::value, void>
+      {
+        callable();
+        result_.store();
+      }
+
       /**
        * Create the coroutine object and configure it to run the Callable.
        */
@@ -100,7 +115,7 @@ namespace ell
 
               try
               {
-                result_.store(callable());
+                wrap_user_call(callable);
               }
               catch (const std::exception &)
               {
@@ -108,8 +123,6 @@ namespace ell
               }
             },
             attr, valgrind_stack_allocator());
-
-        // boost::coroutines::attributes(), valgrind_stack_allocator());
         // Run the coroutine to perform initialization task.
         coroutine_();
       }
