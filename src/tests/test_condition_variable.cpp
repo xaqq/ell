@@ -14,12 +14,14 @@ TEST(test_cond_var, simple_wait_notify)
   auto pusher = [&]() -> void
   {
     ell::sleep(std::chrono::milliseconds(2500));
+    std::cout << "LOLXXXXXXXXXXXXXXX" << std::endl;
     cond.notify_all();
   };
 
   auto popper = [&]() -> void
   {
     cond.wait();
+    std::cout << "DONE WAITING" << std::endl;
   };
 
   auto pusher_task = loop.call_soon(pusher);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_set>
 #include "ell.hpp"
 #include "base_event_loop.hpp"
 #include "details/task_builder.hpp"
@@ -55,27 +56,27 @@ namespace ell
        */
       void schedule()
       {
+        handle_wait_handlers();
         move_tasks();
         wake_tasks();
         try_to_sleep();
 
-        for (auto &task : active_tasks_)
+        for (auto &task : active_)
         {
           current_task_ = task;
           task->resume();
 
           if (task->is_complete())
           {
-            // std::cout << "Task complete !" << std::endl;
-            completed_tasks_.push_back(task);
-            for (auto &child_task : task->dependants_)
-              mark_active(child_task);
+            std::cout << "Task complete !" << std::endl;
+            task_completed(task);
           }
           else
           {
-            //  std::cout << "Task NOT complete" << std::endl;
+            std::cout << "Task NOT complete" << std::endl;
           }
         }
+        current_task_ = nullptr;
       }
 
       template <typename Callable>
@@ -83,9 +84,7 @@ namespace ell
       {
         auto task = call_soon(callable);
 
-        task->impl_.dependants_.push_back(current_task_);
-
-        new_inactive_tasks_.push_back(current_task_);
+        attach_wait_handler(task->impl_.wait_handler(), current_task_);
         current_task_->suspend();
 
         return task->get_result();
@@ -95,9 +94,10 @@ namespace ell
       void sleep_current_task_impl(const Duration &duration)
       {
         TaskSleep task(current_task_, duration);
+        attach_wait_handler(task.wait_handler(), current_task_);
+
         sleep_tasks_.push_back(task);
 
-        new_inactive_tasks_.push_back(current_task_);
         current_task_->suspend();
       }
 
@@ -110,36 +110,14 @@ namespace ell
       void move_tasks()
       {
         // add new task to the active queue
-        active_tasks_.insert(active_tasks_.end(), new_tasks_.begin(), new_tasks_.end());
+        active_.insert(new_tasks_.begin(), new_tasks_.end());
         new_tasks_.clear();
 
-        // Add inactive task to inactive queue
-        inactive_tasks_.insert(inactive_tasks_.end(), new_inactive_tasks_.begin(),
-                               new_inactive_tasks_.end());
-
-        // Remove new inactive task from the active queue
-        active_tasks_.erase(std::remove_if(active_tasks_.begin(), active_tasks_.end(),
-                                           [&](TaskImplPtr t)
-                                           {
-                                             return std::find(new_inactive_tasks_.begin(),
-                                                              new_inactive_tasks_.end(),
-                                                              t) !=
-                                                    new_inactive_tasks_.end();
-                                           }),
-                            active_tasks_.end());
-
-        new_inactive_tasks_.clear();
-
         // remove the completed task from the active queue.
-        active_tasks_.erase(std::remove_if(active_tasks_.begin(), active_tasks_.end(),
-                                           [&](TaskImplPtr t)
-                                           {
-                                             return std::find(completed_tasks_.begin(),
-                                                              completed_tasks_.end(),
-                                                              t) !=
-                                                    completed_tasks_.end();
-                                           }),
-                            active_tasks_.end());
+        for (auto &completed : completed_tasks_)
+        {
+          active_.erase(completed);
+        }
         completed_tasks_.clear();
       }
 
@@ -150,11 +128,12 @@ namespace ell
       {
         auto now = std::chrono::system_clock::now();
         sleep_tasks_.erase(std::remove_if(sleep_tasks_.begin(), sleep_tasks_.end(),
-                                          [&](const TaskSleep &task)
+                                          [&](TaskSleep &task)
                                           {
                                             if (now >= task.until())
                                             {
-                                              mark_active(task.parent());
+                                              std::cout << "REMOVING" << std::endl;
+                                              detach_wait_handler(task.wait_handler());
                                               return true;
                                             }
                                             return false;
@@ -171,7 +150,7 @@ namespace ell
       {
         using namespace std::chrono;
 
-        if (active_tasks_.size() > 0 || sleep_tasks_.size() == 0)
+        if (active_.size() > 0 || sleep_tasks_.size() == 0)
           return;
 
         system_clock::time_point shortest = system_clock::time_point::max();
@@ -186,40 +165,115 @@ namespace ell
         std::this_thread::sleep_until(shortest);
       }
 
-    public:
       /**
-       * Mark a task as active.
+       * Change the status of the tasks based on
+       * the wait handlers.
        */
-      void mark_active(const TaskImplPtr &task)
+      void handle_wait_handlers()
       {
-        auto itr = std::find(active_tasks_.begin(), active_tasks_.end(), task);
-        assert(itr == active_tasks_.end());
-
-        itr = std::find(inactive_tasks_.begin(), inactive_tasks_.end(), task);
-        if (itr != inactive_tasks_.end())
+        assert(current_task_ == nullptr);
+        for (auto &task : dirty_tasks_)
         {
-          inactive_tasks_.erase(itr);
+          if (task->wait_count_ == 0)
+          {
+            inactive_.erase(task);
+            active_.insert(task);
+          }
+          else
+          {
+            active_.erase(task);
+            inactive_.insert(task);
+          }
+          // If the task is waiting for nothing, mark it active.
+          /*          if (task->wait_list().size() == 0)
+                    {
+                      inactive_.erase(task);
+                      active_.insert(task);
+                    }
+                    else
+                    {
+                      active_.erase(task);
+                      inactive_.insert(task);
+                    }*/
         }
-        new_tasks_.push_back(task);
+        dirty_tasks_.clear();
       }
 
-      void mark_inactive(const TaskImplPtr &task)
+      /**
+       * Mark a task as completed.
+       * Shall happen during a loop iteration.
+       */
+      void task_completed(const TaskImplPtr &task)
       {
-        new_inactive_tasks_.push_back(task);
+        assert(current_task_ && current_task_ == task);
+        std::cout << "COMPLETED" << std::endl;
+        detach_wait_handler(task->wait_handler());
+        completed_tasks_.push_back(task);
+      }
+
+    public:
+      void attach_wait_handler(WaitHandler &handler, const TaskImplPtr &task)
+      {
+        std::cout << "ATTACHING to id " << handler.id()
+                  << "count = " << handler.tasks_.size() << std::endl;
+        if (task->wait_count_ == 0)
+          dirty_tasks_.insert(task);
+        task->wait_count_++;
+        handler.tasks_.push_back(task);
+        //  std::cout << "ATTACHED to id " << handler.id() << "count = " <<
+        //  handler.tasks_.size() << std::endl;
+
+        // task->wait_list().insert(handler);
+        // whandler_tasks_.insert(std::make_pair(handler, task));
+      }
+
+      /**
+       * Remove a WaitHandler from tasks that were waiting on it.
+       * Mark the corresponding task dirty.
+       */
+      void detach_wait_handler(WaitHandler &handler)
+      {
+        std::cout << "ALMOST REALLY DETACHING. Id = " << handler.id()
+                  << " sz = " << handler.tasks_.size() << std::endl;
+        for (auto &t : handler.tasks_)
+        {
+          std::cout << "DETACHING " << handler.id() << " Curr count = " << t->wait_count_
+                    << std::endl;
+
+          assert(t->wait_count_ > 0);
+          t->wait_count_--;
+          if (t->wait_count_ == 0)
+          {
+            std::cout << "marking dirty" << std::endl;
+            dirty_tasks_.insert(t);
+          }
+        }
+        /* auto range = whandler_tasks_.equal_range(handler);
+         auto begin = range.first;
+         auto end = range.second;
+
+         while (begin != end)
+         {
+           auto &task = begin->second;
+
+           dirty_tasks_.insert(task);
+           task->wait_list().erase(handler);
+           ++begin;
+         }
+         whandler_tasks_.erase(handler);*/
       }
 
     private:
-      using TaskQueue = std::vector<TaskImplPtr>;
+      using TaskQueue    = std::vector<TaskImplPtr>;
+      using TaskQueueNew = std::unordered_set<TaskImplPtr>;
 
       /**
        * Must be first attribute, so it is destroyed last.
        */
       TaskBuilder builder_;
 
-      /**
-       * Task that can (and will) run.
-       */
-      TaskQueue active_tasks_;
+      TaskQueueNew active_;
+      TaskQueueNew inactive_;
 
       /**
        * Newly created task that needs to be pushed into the active_task_ vector.
@@ -229,25 +283,21 @@ namespace ell
        */
       TaskQueue new_tasks_;
 
-      /**
-       * Task waiting for something.
-       */
-      TaskQueue inactive_tasks_;
-
-      /**
-       * Tasks that have just be marked inactive.
-       */
-      TaskQueue new_inactive_tasks_;
-
       TaskQueue completed_tasks_;
 
       TaskImplPtr current_task_;
 
       /**
+       * Tasks whose WaitHandler list changed
+       * since we loop iteration.
+       */
+      TaskQueueNew dirty_tasks_;
+      std::multimap<WaitHandler, TaskImplPtr> whandler_tasks_;
+
+      /**
        * List of `TaskSleep`
        */
       std::vector<TaskSleep> sleep_tasks_;
-
 
       friend class BaseEventLoop;
     };

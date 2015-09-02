@@ -6,9 +6,11 @@
 #include <iostream>
 #include <boost/coroutine/coroutine.hpp>
 #include <boost/pool/pool.hpp>
+#include <unordered_set>
 #include "ell_fwd.hpp"
 #include "valgrind_allocator.hpp"
 #include "details/result_holder.hpp"
+#include "details/wait_handler.hpp"
 
 namespace ell
 {
@@ -34,6 +36,7 @@ namespace ell
       template <typename Callable>
       TaskImpl(const Callable &callable)
           : yield_(nullptr)
+          , wait_count_(0)
       {
         setup_coroutine(callable);
       }
@@ -71,6 +74,23 @@ namespace ell
       bool is_complete() const
       {
         return !coroutine_;
+      }
+      /*
+
+            const std::unordered_set<WaitHandler> &wait_list() const
+            {
+      //        return wait_list_;
+            }
+
+            std::unordered_set<WaitHandler> &wait_list()
+            {
+      //        return wait_list_;
+            }
+      */
+
+      WaitHandler &wait_handler() const
+      {
+        return wait_handler_;
       }
 
     private:
@@ -142,11 +162,18 @@ namespace ell
 
       ResultHolder result_;
 
-    public:
       /**
-       * List of task that depends on this task.
+       * What are we waiting for.
        */
-      std::vector<TaskImplPtr> dependants_;
+      // std::unordered_set<WaitHandler> wait_list_;
+
+      /**
+       * Wait handler for this task.
+       */
+      mutable WaitHandler wait_handler_;
+
+    public:
+      int wait_count_;
     };
   }
 }

@@ -16,11 +16,16 @@ namespace ell
     {
     public:
       template <typename Duration>
-      explicit TaskSleep(TaskImplPtr parent_task, const Duration &duration)
-          : parent_(parent_task)
+      explicit TaskSleep(TaskImplPtr /*parent_task*/, const Duration &duration)
       {
         auto now = std::chrono::system_clock::now();
         until_   = now + duration;
+      }
+
+      TaskSleep(const TaskSleep &o)
+      {
+        until_        = o.until_;
+        wait_handler_ = o.wait_handler_;
       }
 
       const std::chrono::system_clock::time_point &until() const
@@ -28,18 +33,15 @@ namespace ell
         return until_;
       }
 
-      const TaskImplPtr &parent() const
+      WaitHandler &wait_handler()
       {
-        return parent_;
+        return wait_handler_;
       }
 
     private:
       std::chrono::system_clock::time_point until_;
 
-      /**
-       * The task that initiated the sleep.
-       */
-      TaskImplPtr parent_;
+      WaitHandler wait_handler_;
     };
   }
 }

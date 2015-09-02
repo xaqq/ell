@@ -5,6 +5,7 @@
 #include "ell_fwd.hpp"
 #include "ell.hpp"
 #include "details/task_impl.hpp"
+#include "lock.hpp"
 
 namespace ell
 {
@@ -21,8 +22,9 @@ namespace ell
       auto loop = details::get_current_event_loop();
       assert(loop);
 
-      waiters_.push_back(loop->current_task());
-      loop->mark_inactive(loop->current_task());
+      std::cout << "LOL " << wait_.id() << std::endl;
+      //      lock_.lock();
+      loop->attach_wait_handler(wait_, loop->current_task());
       loop->suspend_current_task();
 
       // could built in predicate check too.
@@ -33,14 +35,12 @@ namespace ell
       auto loop = details::get_current_event_loop();
       assert(loop);
 
-      for (const auto &waiter : waiters_)
-      {
-        loop->mark_active(waiter);
-      }
-      waiters_.clear();
+      loop->detach_wait_handler(wait_);
+      wait_.tasks_.clear();
+      //      lock_.unlock();
     }
 
-    bool status;
-    std::vector<details::TaskImplPtr> waiters_;
+    details::WaitHandler wait_;
+    // Lock lock_;
   };
 }
