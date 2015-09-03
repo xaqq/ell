@@ -1,31 +1,91 @@
 #pragma once
 
 #include <unordered_set>
+#include <iostream>
 #include "ell.hpp"
 #include "base_event_loop.hpp"
 #include "details/task_builder.hpp"
 #include "condition_variable"
 #include "details/task_sleep.hpp"
-#include <iostream>
 
 namespace ell
 {
   namespace details
   {
-    class DefaultEventLoop : public BaseEventLoop<DefaultEventLoop>
+    /**
+     * The default event loop.
+     *
+     * The public method are public to the internal componenent
+     * of the library.
+     *
+     * The end-user has a smaller API available, through the
+     * `EventLoop` typedef.
+     */
+    class DefaultEventLoop
     {
     public:
-      /**
-       * Should not be used by end-user.
-       */
       TaskImplPtr current_task()
       {
         return current_task_;
       }
 
-    private:
+      void current_task_suspend()
+      {
+        current_task_->suspend();
+      }
+
+      template <typename Duration>
+      void current_task_sleep(const Duration &duration)
+      {
+        TaskSleep task(current_task_, duration);
+        attach_wait_handler(task.wait_handler(), current_task_);
+
+        sleep_tasks_.push_back(task);
+
+        current_task_->suspend();
+      }
+
+      void attach_wait_handler(WaitHandler &handler, const TaskImplPtr &task)
+      {
+        ELL_TRACE("Attaching WaitHandler {} to task {}.", handler.id(), task->id());
+        if (task->wait_count() == 0)
+          dirty_tasks_.insert(task);
+        task->incr_wait_count();
+        handler.tasks().push_back(task);
+      }
+
+      /**
+       * Remove a WaitHandler from tasks that were waiting on it.
+       * Mark the corresponding task dirty.
+       */
+      void detach_wait_handler(WaitHandler &handler)
+      {
+        ELL_TRACE("Detaching WaitHandler {}. Number of tasks waiting on this handler: {}",
+                  handler.id(), handler.waiter_count());
+        for (auto &t : handler.tasks())
+        {
+          t->decr_wait_count();
+          if (t->wait_count() == 0)
+          {
+            ELL_TRACE("Marking task {} dirty.", t->id());
+            dirty_tasks_.insert(t);
+          }
+        }
+      }
+
       template <typename Callable>
-      auto call_soon_impl(const Callable &callable) -> TaskPtr<decltype(callable())>
+      auto yield(const Callable &callable) -> decltype(callable())
+      {
+        auto task = call_soon(callable);
+
+        attach_wait_handler(task->impl_.wait_handler(), current_task_);
+        current_task_->suspend();
+
+        return task->get_result();
+      }
+
+      template <typename Callable>
+      auto call_soon(const Callable &callable) -> TaskPtr<decltype(callable())>
       {
         using ReturnType         = decltype(callable());
         TaskPtr<ReturnType> task = builder_.build(callable);
@@ -36,7 +96,7 @@ namespace ell
       }
 
       template <typename T>
-      void run_until_complete_impl(TaskPtr<T> task)
+      void run_until_complete(TaskPtr<T> task)
       {
         set_current_event_loop(this);
 
@@ -46,11 +106,7 @@ namespace ell
         }
       }
 
-      void suspend_current_task_impl()
-      {
-        current_task_->suspend();
-      }
-
+    private:
       /**
        * Run the scheduler, effectively giving CPU time to some coroutine.
        */
@@ -68,37 +124,14 @@ namespace ell
 
           if (task->is_complete())
           {
-            std::cout << "Task complete !" << std::endl;
             task_completed(task);
           }
           else
           {
-            ELL_TRACE("Task not complete. {}");
+            ELL_TRACE("Task {} not complete.", task->id());
           }
         }
         current_task_ = nullptr;
-      }
-
-      template <typename Callable>
-      auto yield_impl(const Callable &callable) -> decltype(callable())
-      {
-        auto task = call_soon(callable);
-
-        attach_wait_handler(task->impl_.wait_handler(), current_task_);
-        current_task_->suspend();
-
-        return task->get_result();
-      }
-
-      template <typename Duration>
-      void sleep_current_task_impl(const Duration &duration)
-      {
-        TaskSleep task(current_task_, duration);
-        attach_wait_handler(task.wait_handler(), current_task_);
-
-        sleep_tasks_.push_back(task);
-
-        current_task_->suspend();
       }
 
       /**
@@ -132,7 +165,6 @@ namespace ell
                                           {
                                             if (now >= task.until())
                                             {
-                                              std::cout << "REMOVING" << std::endl;
                                               detach_wait_handler(task.wait_handler());
                                               return true;
                                             }
@@ -196,39 +228,10 @@ namespace ell
       {
         ELL_ASSERT(current_task_ && current_task_ == task, "Unexpected task "
                                                            "marked as complete.");
-        ELL_TRACE("Task completed.");
+        ELL_TRACE("Task {} completed.", task->id());
 
         detach_wait_handler(task->wait_handler());
         completed_tasks_.push_back(task);
-      }
-
-    public:
-      void attach_wait_handler(WaitHandler &handler, const TaskImplPtr &task)
-      {
-        ELL_TRACE("Attaching handler {} to task {}.", handler.id(), task.id());
-        if (task->wait_count() == 0)
-          dirty_tasks_.insert(task);
-        task->incr_wait_count();
-        handler.tasks_.push_back(task);
-      }
-
-      /**
-       * Remove a WaitHandler from tasks that were waiting on it.
-       * Mark the corresponding task dirty.
-       */
-      void detach_wait_handler(WaitHandler &handler)
-      {
-        ELL_TRACE("Detaching WaitHandler with id: {}. Tasks waiting on this handler: {}",
-                  handler.id(), handler.waiter_count());
-        for (auto &t : handler.tasks_)
-        {
-          t->decr_wait_count();
-          if (t->wait_count() == 0)
-          {
-            ELL_TRACE("Marking task {} dirty.", t->id());
-            dirty_tasks_.insert(t);
-          }
-        }
       }
 
     private:
@@ -260,14 +263,11 @@ namespace ell
        * since we loop iteration.
        */
       TaskQueueNew dirty_tasks_;
-      std::multimap<WaitHandler, TaskImplPtr> whandler_tasks_;
 
       /**
        * List of `TaskSleep`
        */
       std::vector<TaskSleep> sleep_tasks_;
-
-      friend class BaseEventLoop;
     };
   }
 }

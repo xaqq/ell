@@ -7,6 +7,7 @@ TEST(test_queue, simple_push_pop)
 {
   using namespace std::chrono;
 
+  ell::initialize_logger();
   ell::EventLoop loop;
   ell::Queue<int> queue;
   auto start = system_clock::now();

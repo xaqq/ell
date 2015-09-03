@@ -6,7 +6,10 @@
 namespace ell
 {
   /**
-   * A non thread safe queue.
+   * A coroutine-aware (non thread-safe) queue.
+   *
+   * `pop`ing from the queue will put the coroutine
+   * to sleep until something can be popped.
    */
   template <typename T>
   class Queue

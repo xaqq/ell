@@ -37,8 +37,8 @@ namespace ell
       template <typename Callable>
       TaskImpl(const Callable &callable)
           : yield_(nullptr)
-          , wait_count_(0),
-            id_(next_id())
+          , wait_count_(0)
+          , id_(next_id())
       {
         setup_coroutine(callable);
       }

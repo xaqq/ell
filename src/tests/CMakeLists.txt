@@ -1,7 +1,17 @@
 cmake_minimum_required(VERSION 3.0)
 project(ell_tests)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -W -Wall -O3 -g -DSPDLOG_DEBUG_ON=1")
+set(ELL_ENABLE_TRACE 1)
+set(ELL_ENABLE_DEBUG 1)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -W -Wall -O3 -g")
+
+if (ELL_ENABLE_DEBUG)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSPDLOG_DEBUG_ON=1 -DELL_ENABLE_DEBUG=1")
+endif()
+if (ELL_ENABLE_TRACE)
+   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSPDLOG_TRACE_ON=1 -DELL_ENABLE_TRACE=1")
+endif()
 
 set(SOURCE_FILES main.cpp)
 add_executable(test_basic ${SOURCE_FILES})

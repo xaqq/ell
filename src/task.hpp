@@ -14,7 +14,7 @@ namespace ell
    * This type doesn't do type erasure in order to provide compile time
    * type-safety to the library user.
    *
-   * A Task object is not copyable.
+   * A Task object is neither movable nor copyable.
    *
    * @note The type-erased type that is used internally is details::TaskImpl
    * @note Due to implementation, no matter `<T>` the size of the object is the same.
@@ -43,7 +43,7 @@ namespace ell
   private:
     details::TaskImpl impl_;
 
-    friend EventLoop;
+    friend details::EventLoopImpl;
     friend details::TaskBuilder;
   };
 }

@@ -5,9 +5,9 @@
 namespace ell
 {
   /**
-   * The base interface for an event loop.
+   * The publicly exposed EventLoop.
    *
-   * This class uses the CRTP pattern for compile time polymorphism.
+   * This class defines the API available to the library's users.
    */
   template <typename EventLoopImpl>
   class BaseEventLoop
@@ -25,7 +25,7 @@ namespace ell
     template <typename Callable>
     auto call_soon(const Callable &callable) -> TaskPtr<decltype(callable())>
     {
-      return static_cast<EventLoopImpl *>(this)->call_soon_impl(callable);
+      return impl_.call_soon(callable);
     }
 
     /**
@@ -34,36 +34,10 @@ namespace ell
     template <typename T>
     void run_until_complete(TaskPtr<T> task)
     {
-      return static_cast<EventLoopImpl *>(this)->run_until_complete_impl(task);
+      return impl_.run_until_complete(task);
     }
 
-    /**
-     * Suspend the current task.
-     *
-     * The current task will be rescheduled during the next iteration
-     * of the event loop.
-     */
-    void suspend_current_task()
-    {
-      static_cast<EventLoopImpl *>(this)->suspend_current_task_impl();
-    }
-
-    /**
-     * Make the current task go to sleep for a certain duration.
-     */
-    template <typename Duration>
-    void sleep_current_task(const Duration &duration)
-    {
-      static_cast<EventLoopImpl *>(this)->sleep_current_task_impl(duration);
-    }
-
-    /**
-     * Yield to another callable
-     */
-    template <typename Callable>
-    auto yield(const Callable &callable) -> decltype(callable())
-    {
-      return static_cast<EventLoopImpl *>(this)->yield_impl(callable);
-    }
+  private:
+    EventLoopImpl impl_;
   };
 }

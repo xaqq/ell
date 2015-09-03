@@ -20,12 +20,10 @@ namespace ell
     void wait()
     {
       auto loop = details::get_current_event_loop();
-      assert(loop);
+      ELL_ASSERT(loop, "No event loop");
 
-      std::cout << "LOL " << wait_.id() << std::endl;
-      //      lock_.lock();
       loop->attach_wait_handler(wait_, loop->current_task());
-      loop->suspend_current_task();
+      loop->current_task_suspend();
 
       // could built in predicate check too.
     }
@@ -33,14 +31,12 @@ namespace ell
     void notify_all()
     {
       auto loop = details::get_current_event_loop();
-      assert(loop);
+      ELL_ASSERT(loop, "No event loop");
 
       loop->detach_wait_handler(wait_);
-      wait_.tasks_.clear();
-      //      lock_.unlock();
+      wait_.reset();
     }
 
     details::WaitHandler wait_;
-    // Lock lock_;
   };
 }

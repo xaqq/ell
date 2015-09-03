@@ -6,12 +6,6 @@
 
 namespace ell
 {
-  namespace details
-  {
-    class DefaultEventLoop;
-  }
-  using EventLoop = details::DefaultEventLoop;
-
   // We have one event loop per thread running at the same time.
   // We a run*() method is called, the event set itself as the current loop
   // for the thread. This allows static helper function to works as intended.
@@ -20,9 +14,9 @@ namespace ell
     /**
      * Hides global thread_local variable inside a get/set functions
      */
-    EventLoop *set_current_event_loop(EventLoop *loop, bool set = true)
+    EventLoopImpl *set_current_event_loop(EventLoopImpl *loop, bool set = true)
     {
-      static thread_local EventLoop *current_loop = nullptr;
+      static thread_local EventLoopImpl *current_loop = nullptr;
       if (set)
         current_loop = loop;
       return current_loop;
@@ -31,7 +25,7 @@ namespace ell
     /**
      * Retrieve the current event loop for the current thread.
      */
-    EventLoop *get_current_event_loop()
+    EventLoopImpl *get_current_event_loop()
     {
       return set_current_event_loop(nullptr, false);
     }
@@ -50,7 +44,7 @@ namespace ell
   {
     auto console = spdlog::stdout_logger_mt("ell_console");
     ELL_ASSERT(console, "Cannot create logger.");
-    console->set_level(spdlog::level::debug);
+    console->set_level(spdlog::level::trace);
     ELL_DEBUG("Hello {}!", 1);
     ELL_DEBUG("World");
   }
@@ -60,13 +54,13 @@ namespace ell
   */
   void yield()
   {
-    details::get_current_event_loop()->suspend_current_task();
+    details::get_current_event_loop()->current_task_suspend();
   }
 
   template <typename Duration>
   void sleep(const Duration &duration)
   {
-    details::get_current_event_loop()->sleep_current_task(duration);
+    details::get_current_event_loop()->current_task_sleep(duration);
   }
 
   /**

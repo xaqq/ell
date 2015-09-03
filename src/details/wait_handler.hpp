@@ -11,10 +11,11 @@ namespace ell
     /**
      * A WaitHandler is used to refer to everything a
      * coroutine could be waiting for.
+    *
+     * Coroutine activity is tracker through WaitHandler.
+     * A WaitHandler is attached to a task by calling
      *
-     * This lets library components talks to the
-     * loop through a unified interface, instead of interacting
-     * with the scheduler directly.
+     *
      */
     class WaitHandler
     {
@@ -87,10 +88,15 @@ namespace ell
         tasks_.clear();
       }
 
-      std::vector<TaskImplPtr> tasks_;
+      std::vector<TaskImplPtr> &tasks()
+      {
+        return tasks_;
+      }
 
     private:
       uint64_t id_;
+      std::vector<TaskImplPtr> tasks_;
+
       static uint64_t next_id()
       {
         static uint64_t count = 0;

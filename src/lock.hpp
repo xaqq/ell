@@ -50,7 +50,7 @@ namespace ell
       while (locked_)
       {
         loop->attach_wait_handler(wait_, loop->current_task());
-        loop->suspend_current_task();
+        loop->current_task_suspend();
         // someone may wake up before us.
       }
       locked_ = true;

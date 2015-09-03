@@ -13,14 +13,29 @@ namespace ell
   template <typename T>
   class Queue;
 
+  template <typename T>
+  class BaseEventLoop;
+
   namespace details
   {
     class TaskImpl;
     using TaskImplPtr = std::shared_ptr<TaskImpl>;
-    class DefaultEventLoop;
 
+    class DefaultEventLoop;
     class TaskBuilder;
+
+    /**
+     * The event currently used as the backend.
+     *
+     * The class typedef'd here exposed a richer API
+     * than the the `EventLoop` typedef. This
+     * extra API is for internal use.
+     */
+    using EventLoopImpl = details::DefaultEventLoop;
   }
 
-  using EventLoop = details::DefaultEventLoop;
+  /**
+   * The EventLoop that is used in end-user code.
+   */
+  using EventLoop = BaseEventLoop<details::DefaultEventLoop>;
 }
