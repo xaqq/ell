@@ -55,7 +55,7 @@ namespace ell
         using ConcreteType = std::remove_const_t<std::remove_reference_t<T>>;
         static_assert(alignof(T) <= align_, "Alignment isn't strong enough.");
 
-        assert(!valid_ && "A result has already been stored.");
+        ELL_ASSERT(!valid_, "A result has already been stored.");
         valid_ = true;
         obj_   = nullptr; // release what ever we were holding.
 
@@ -82,7 +82,7 @@ namespace ell
 
       void store(void)
       {
-        assert(!valid_ && "Already notified");
+        ELL_ASSERT(!valid_, "Already notified");
         valid_ = true;
       }
 
@@ -91,10 +91,10 @@ namespace ell
        */
       void store_exception(std::exception_ptr eptr)
       {
-        assert(!valid_ && "A result has already been stored.");
+        ELL_ASSERT(!valid_, "A result has already been stored.");
         valid_ = true;
 
-        assert(eptr_ == nullptr);
+        ELL_ASSERT(eptr_ == nullptr, "oops");
         eptr_ = eptr;
       }
 
@@ -105,7 +105,7 @@ namespace ell
       std::enable_if_t<!std::is_same<void, T>::value, T> get()
       {
         using ConcreteType = std::remove_reference_t<T>;
-        assert(valid_ && "No result stored.");
+        ELL_ASSERT(valid_, "No result stored.");
         valid_ = false;
 
         if (eptr_)
@@ -122,7 +122,7 @@ namespace ell
       template <typename T>
       std::enable_if_t<std::is_same<void, T>::value> get()
       {
-        assert(valid_ && "No result stored.");
+        ELL_ASSERT(valid_, "No result stored.");
         valid_ = false;
 
         if (eptr_)

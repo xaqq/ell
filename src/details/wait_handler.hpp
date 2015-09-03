@@ -69,6 +69,24 @@ namespace ell
         return id_;
       }
 
+      /**
+       * Returns the number of tasks waiting for
+       * this is handler.
+       */
+      size_t waiter_count() const
+      {
+        return tasks_.size();
+      }
+
+      /**
+       * Reset the handler, clearing the list of
+       * tasks waiting for this handler.
+       */
+      void reset()
+      {
+        tasks_.clear();
+      }
+
       std::vector<TaskImplPtr> tasks_;
 
     private:
@@ -78,7 +96,7 @@ namespace ell
         static uint64_t count = 0;
         if (count == std::numeric_limits<uint64_t>::max())
         {
-          assert(0);
+          ELL_ASSERT(0, "Out of ids");
         }
         return ++count;
       }

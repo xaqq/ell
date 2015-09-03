@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ell_fwd.hpp"
+#include "details/ell_log.hpp"
+#include "details/ell_assert.hpp"
 
 namespace ell
 {
@@ -41,6 +43,17 @@ namespace ell
 
 namespace ell
 {
+  /**
+   * Initialize the logging system.
+   */
+  void initialize_logger()
+  {
+    auto console = spdlog::stdout_logger_mt("ell_console");
+    ELL_ASSERT(console, "Cannot create logger.");
+    console->set_level(spdlog::level::debug);
+    ELL_DEBUG("Hello {}!", 1);
+    ELL_DEBUG("World");
+  }
 
   /**
   * Simply yield, being nice and giving other a chance to run!

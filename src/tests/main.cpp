@@ -4,7 +4,7 @@
 int tata()
 {
   std::cout << "~~Tata~~" << std::endl;
-  for (int i = 0; i < 2000000; i++)
+  for (int i = 0; i < 2000; i++)
   {
     ell::yield();
   }
@@ -24,6 +24,7 @@ int toto()
 
 int main()
 {
+  // ell::initialize_logger();
   ell::EventLoop l;
   auto task = l.call_soon(toto);
   l.run_until_complete(task);

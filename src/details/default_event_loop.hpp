@@ -73,7 +73,7 @@ namespace ell
           }
           else
           {
-            std::cout << "Task NOT complete" << std::endl;
+            ELL_TRACE("Task not complete. {}");
           }
         }
         current_task_ = nullptr;
@@ -171,10 +171,10 @@ namespace ell
        */
       void handle_wait_handlers()
       {
-        assert(current_task_ == nullptr);
+        ELL_ASSERT(current_task_ == nullptr, "Called while running a task.");
         for (auto &task : dirty_tasks_)
         {
-          if (task->wait_count_ == 0)
+          if (task->wait_count() == 0)
           {
             inactive_.erase(task);
             active_.insert(task);
@@ -184,17 +184,6 @@ namespace ell
             active_.erase(task);
             inactive_.insert(task);
           }
-          // If the task is waiting for nothing, mark it active.
-          /*          if (task->wait_list().size() == 0)
-                    {
-                      inactive_.erase(task);
-                      active_.insert(task);
-                    }
-                    else
-                    {
-                      active_.erase(task);
-                      inactive_.insert(task);
-                    }*/
         }
         dirty_tasks_.clear();
       }
@@ -205,8 +194,10 @@ namespace ell
        */
       void task_completed(const TaskImplPtr &task)
       {
-        assert(current_task_ && current_task_ == task);
-        std::cout << "COMPLETED" << std::endl;
+        ELL_ASSERT(current_task_ && current_task_ == task, "Unexpected task "
+                                                           "marked as complete.");
+        ELL_TRACE("Task completed.");
+
         detach_wait_handler(task->wait_handler());
         completed_tasks_.push_back(task);
       }
@@ -214,17 +205,11 @@ namespace ell
     public:
       void attach_wait_handler(WaitHandler &handler, const TaskImplPtr &task)
       {
-        std::cout << "ATTACHING to id " << handler.id()
-                  << "count = " << handler.tasks_.size() << std::endl;
-        if (task->wait_count_ == 0)
+        ELL_TRACE("Attaching handler {} to task {}.", handler.id(), task.id());
+        if (task->wait_count() == 0)
           dirty_tasks_.insert(task);
-        task->wait_count_++;
+        task->incr_wait_count();
         handler.tasks_.push_back(task);
-        //  std::cout << "ATTACHED to id " << handler.id() << "count = " <<
-        //  handler.tasks_.size() << std::endl;
-
-        // task->wait_list().insert(handler);
-        // whandler_tasks_.insert(std::make_pair(handler, task));
       }
 
       /**
@@ -233,34 +218,17 @@ namespace ell
        */
       void detach_wait_handler(WaitHandler &handler)
       {
-        std::cout << "ALMOST REALLY DETACHING. Id = " << handler.id()
-                  << " sz = " << handler.tasks_.size() << std::endl;
+        ELL_TRACE("Detaching WaitHandler with id: {}. Tasks waiting on this handler: {}",
+                  handler.id(), handler.waiter_count());
         for (auto &t : handler.tasks_)
         {
-          std::cout << "DETACHING " << handler.id() << " Curr count = " << t->wait_count_
-                    << std::endl;
-
-          assert(t->wait_count_ > 0);
-          t->wait_count_--;
-          if (t->wait_count_ == 0)
+          t->decr_wait_count();
+          if (t->wait_count() == 0)
           {
-            std::cout << "marking dirty" << std::endl;
+            ELL_TRACE("Marking task {} dirty.", t->id());
             dirty_tasks_.insert(t);
           }
         }
-        /* auto range = whandler_tasks_.equal_range(handler);
-         auto begin = range.first;
-         auto end = range.second;
-
-         while (begin != end)
-         {
-           auto &task = begin->second;
-
-           dirty_tasks_.insert(task);
-           task->wait_list().erase(handler);
-           ++begin;
-         }
-         whandler_tasks_.erase(handler);*/
       }
 
     private:

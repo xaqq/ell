@@ -6,6 +6,7 @@
 #include "ell.hpp"
 #include "details/task_impl.hpp"
 #include "details/wait_handler.hpp"
+#include "details/ell_assert.hpp"
 
 namespace ell
 {
@@ -37,9 +38,9 @@ namespace ell
     }
     void lock()
     {
-
       auto loop = details::get_current_event_loop();
-      assert(loop);
+      ELL_ASSERT(loop, "No event loop.");
+
       if (!locked_)
       {
         locked_ = true;
@@ -58,7 +59,7 @@ namespace ell
     void unlock()
     {
       auto loop = details::get_current_event_loop();
-      assert(loop);
+      ELL_ASSERT(loop, "No event loop.");
       loop->detach_wait_handler(wait_);
     }
 

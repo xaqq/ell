@@ -11,6 +11,7 @@
 #include "valgrind_allocator.hpp"
 #include "details/result_holder.hpp"
 #include "details/wait_handler.hpp"
+#include "details/ell_log.hpp"
 
 namespace ell
 {
@@ -36,7 +37,8 @@ namespace ell
       template <typename Callable>
       TaskImpl(const Callable &callable)
           : yield_(nullptr)
-          , wait_count_(0)
+          , wait_count_(0),
+            id_(next_id())
       {
         setup_coroutine(callable);
       }
@@ -62,7 +64,7 @@ namespace ell
        */
       void resume()
       {
-        // std::cout << "Resuming task !" << std::endl;
+        ELL_TRACE("Resuming task {}", id_);
         coroutine_();
       }
 
@@ -75,22 +77,40 @@ namespace ell
       {
         return !coroutine_;
       }
-      /*
-
-            const std::unordered_set<WaitHandler> &wait_list() const
-            {
-      //        return wait_list_;
-            }
-
-            std::unordered_set<WaitHandler> &wait_list()
-            {
-      //        return wait_list_;
-            }
-      */
 
       WaitHandler &wait_handler() const
       {
         return wait_handler_;
+      }
+
+      uint64_t id() const
+      {
+        return id_;
+      }
+
+      /**
+       * Returns the number of WaitHandler we are waiting for.
+       */
+      unsigned int wait_count() const
+      {
+        return wait_count_;
+      }
+
+      /**
+       * Increment the current wait_count by 1.
+       */
+      void incr_wait_count()
+      {
+        wait_count_++;
+      }
+
+      /**
+       * Decrement the current wait_count by 1.
+       */
+      void decr_wait_count()
+      {
+        ELL_ASSERT(wait_count_ > 0, "wait_count cannot be negative.");
+        wait_count_--;
       }
 
     private:
@@ -163,17 +183,26 @@ namespace ell
       ResultHolder result_;
 
       /**
-       * What are we waiting for.
-       */
-      // std::unordered_set<WaitHandler> wait_list_;
-
-      /**
        * Wait handler for this task.
        */
       mutable WaitHandler wait_handler_;
 
-    public:
-      int wait_count_;
+      unsigned int wait_count_;
+
+      uint64_t id_;
+
+      /**
+       * Gives a unique ID to each task.
+       */
+      static uint64_t next_id()
+      {
+        static uint64_t count = 0;
+        if (count == std::numeric_limits<uint64_t>::max())
+        {
+          assert(0);
+        }
+        return ++count;
+      }
     };
   }
 }
