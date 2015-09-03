@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
 project(ell_tests)
 
-set(ELL_ENABLE_TRACE 1)
-set(ELL_ENABLE_DEBUG 1)
+set(ELL_ENABLE_TRACE 0)
+set(ELL_ENABLE_DEBUG 0)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -W -Wall -O3 -g")
 

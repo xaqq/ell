@@ -39,6 +39,7 @@ namespace ell
           : yield_(nullptr)
           , wait_count_(0)
           , id_(next_id())
+          , is_active_(false)
       {
         setup_coroutine(callable);
       }
@@ -76,6 +77,24 @@ namespace ell
       bool is_complete() const
       {
         return !coroutine_;
+      }
+
+      /**
+       * Mark the task active.
+       * This is only used as cache and is maintained by the event loop.
+       */
+      void set_active(bool val)
+      {
+        is_active_ = val;
+      }
+
+      /**
+       * Mark the task active.
+       * This is only used as cache and is maintained by the event loop.
+       */
+      bool is_active() const
+      {
+        return is_active_;
       }
 
       WaitHandler &wait_handler() const
@@ -191,6 +210,8 @@ namespace ell
 
       uint64_t id_;
 
+      bool is_active_;
+
       /**
        * Gives a unique ID to each task.
        */
@@ -199,7 +220,7 @@ namespace ell
         static uint64_t count = 0;
         if (count == std::numeric_limits<uint64_t>::max())
         {
-          assert(0);
+          ELL_ASSERT(0, "Running out of ids.");
         }
         return ++count;
       }

@@ -143,12 +143,17 @@ namespace ell
       void move_tasks()
       {
         // add new task to the active queue
+        std::for_each(new_tasks_.begin(), new_tasks_.end(), [](const TaskImplPtr &task)
+                      {
+                        task->set_active(true);
+                      });
         active_.insert(new_tasks_.begin(), new_tasks_.end());
         new_tasks_.clear();
 
         // remove the completed task from the active queue.
         for (auto &completed : completed_tasks_)
         {
+          completed->set_active(false);
           active_.erase(completed);
         }
         completed_tasks_.clear();
@@ -206,15 +211,17 @@ namespace ell
         ELL_ASSERT(current_task_ == nullptr, "Called while running a task.");
         for (auto &task : dirty_tasks_)
         {
-          if (task->wait_count() == 0)
+          if (task->wait_count() == 0 && !task->is_active()) // already active maybe
           {
             inactive_.erase(task);
             active_.insert(task);
+            task->set_active(true);
           }
-          else
+          else if (task->wait_count() > 0 && task->is_active()) // maybe already inactive.
           {
             active_.erase(task);
             inactive_.insert(task);
+            task->set_active(false);
           }
         }
         dirty_tasks_.clear();

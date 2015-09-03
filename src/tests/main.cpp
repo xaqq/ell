@@ -24,7 +24,7 @@ int toto()
 
 int main()
 {
-  // ell::initialize_logger();
+  ell::initialize_logger();
   ell::EventLoop l;
   auto task = l.call_soon(toto);
   l.run_until_complete(task);
