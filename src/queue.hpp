@@ -34,7 +34,7 @@ namespace ell
      */
     void push(T &&obj)
     {
-      while (maxsize_ > 0 && size() == maxsize_)
+      while (full())
       {
         condvar_.wait();
       }
@@ -45,14 +45,35 @@ namespace ell
 
     void push(const T &obj)
     {
-      ELL_DEBUG("Current size: {}. Maxsize: {}", size(), maxsize_);
-      while (maxsize_ > 0 && size() == maxsize_)
+      while (full())
       {
         condvar_.wait();
       }
       storage_.push(obj);
       condvar_.notify_all();
       ELL_ASSERT(maxsize_ == 0 || size() <= maxsize_, "Too much items in the queue");
+    }
+
+    /**
+     * Adds an item to the queue, if there is at least one slot
+     * available in the queue.
+     *
+     * If no slots are available, does nothing and returns false.
+     */
+    bool try_push(T &&obj)
+    {
+      if (full())
+        return false;
+      push(std::forward<T>(obj));
+      return true;
+    }
+
+    bool try_push(const T &obj)
+    {
+      if (full())
+        return false;
+      push(obj);
+      return true;
     }
 
     /**
@@ -95,6 +116,18 @@ namespace ell
     size_t size() const
     {
       return storage_.size();
+    }
+
+    /**
+     * Returns true if the queue is full, false otherwise.
+     *
+     * A queue without a maximum size is never full.
+     */
+    bool full() const
+    {
+      if (maxsize_ > 0 && size() == maxsize_)
+        return true;
+      return false;
     }
 
   private:

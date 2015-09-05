@@ -148,6 +148,51 @@ TEST(test_queue, fized_size_queue)
   loop.run_until_complete(pop_task);
 }
 
+TEST(test_queue, test_try_push)
+{
+  using namespace std::chrono;
+
+  ell::EventLoop loop;
+  ell::Queue<int> queue(10); // maxsize
+  auto start = system_clock::now();
+
+  // Fully populate the queue.
+  for (int i = 0; i < 10; i++)
+    queue.push(i);
+
+  auto pusher = [&]()
+  {
+    // The queue is full.
+    ASSERT_FALSE(queue.try_push(42));
+    queue.push(1337);
+
+    // coroutine `popper` popped 11 items. We now have space.
+    ASSERT_TRUE(queue.try_push(42));
+
+    // We should have waited for 1.5 second.
+    auto end     = system_clock::now();
+    auto elapsed = duration_cast<milliseconds>(end - start);
+    GASSERT(GE(elapsed.count(), 1500));
+  };
+
+  auto popper = [&]()
+  {
+    ell::sleep(std::chrono::milliseconds(1500));
+    for (int i = 0; i < 10; ++i)
+      queue.pop();
+
+    int item = queue.pop();
+    ASSERT_EQ(1337, item);
+    item = queue.pop();
+    ASSERT_EQ(42, item);
+  };
+
+  auto pusher_task = loop.call_soon(pusher);
+  auto pop_task    = loop.call_soon(popper);
+
+  loop.run_until_complete(pop_task);
+}
+
 int main(int ac, char **av)
 {
   ell::initialize_logger();
