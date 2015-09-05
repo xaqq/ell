@@ -33,6 +33,30 @@ namespace ell
       return tmp;
     }
 
+    /**
+     * Remove and return an item from the queue if one is already available.
+     *
+     * If no item are available, the function returns false. Otherwise
+     * it returns true.
+     */
+    bool try_pop(T &out)
+    {
+      if (size() > 0)
+      {
+        out = pop();
+        return true;
+      }
+      return false;
+    }
+
+    /**
+     * Returns the number of items in the queue.
+     */
+    size_t size() const
+    {
+      return storage_.size();
+    }
+
   private:
     ConditionVariable condvar_;
     std::queue<T> storage_;
