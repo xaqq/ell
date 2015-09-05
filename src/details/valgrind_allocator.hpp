@@ -6,6 +6,8 @@
 #endif
 #include <boost/coroutine/stack_allocator.hpp>
 
+#define ELL_COROUTINE_STACK_SIZE (1024 * 65)
+
 namespace ell
 {
   namespace details
@@ -14,7 +16,7 @@ namespace ell
     {
       static boost::pool<> &pool()
       {
-        static boost::pool<> p(1024 * 4);
+        static boost::pool<> p(ELL_COROUTINE_STACK_SIZE);
         return p;
       }
     };
@@ -35,7 +37,7 @@ namespace ell
     public:
       void allocate(boost::coroutines::stack_context &sc, std::size_t size)
       {
-        if (size == 1024 * 4)
+        if (size == ELL_COROUTINE_STACK_SIZE)
         {
           auto limit = CoroutineStackAllocator::pool().malloc();
           sc.size    = size;
@@ -61,7 +63,7 @@ namespace ell
         VALGRIND_STACK_DEREGISTER(id->second);
         stack_ids.erase(id);
 #endif
-        if (sc.size == 1024 * 4)
+        if (sc.size == ELL_COROUTINE_STACK_SIZE)
         {
           void *limit = static_cast<char *>(sc.sp) - sc.size;
           CoroutineStackAllocator::pool().free(limit);

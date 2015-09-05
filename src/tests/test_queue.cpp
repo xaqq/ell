@@ -25,7 +25,7 @@ TEST(test_queue, simple_push_pop)
 
   auto pusher = [&]() -> void
   {
-    ell::sleep(std::chrono::milliseconds(2500));
+    ell::sleep(std::chrono::milliseconds(1500));
     queue.push(42);
     queue.push(21);
   };
@@ -38,7 +38,7 @@ TEST(test_queue, simple_push_pop)
     // We should have waited for 2.5 second.
     auto end     = system_clock::now();
     auto elapsed = duration_cast<milliseconds>(end - start);
-    GASSERT(GE(elapsed.count(), 2500));
+    GASSERT(GE(elapsed.count(), 1500));
 
     // Second pop should be instant.
     int v2 = queue.pop();
@@ -71,7 +71,7 @@ TEST(test_queue, try_pop)
 
   auto pusher = [&]() -> void
   {
-    ell::sleep(std::chrono::milliseconds(2500));
+    ell::sleep(std::chrono::milliseconds(1500));
     queue.push(42);
     queue.push(21);
   };
@@ -90,7 +90,7 @@ TEST(test_queue, try_pop)
     // We should have waited for 2.5 second.
     auto end     = system_clock::now();
     auto elapsed = duration_cast<milliseconds>(end - start);
-    GASSERT(GE(elapsed.count(), 2500));
+    GASSERT(GE(elapsed.count(), 1500));
 
     // try_pop will succeed for the second item.
     GASSERT(TRUE(queue.try_pop(ret)));
@@ -101,6 +101,45 @@ TEST(test_queue, try_pop)
     GASSERT(LE(elapsed.count(), 5)); // We allow ~5ms if CPU is slow.
 
     return v1;
+  };
+
+  auto pusher_task = loop.call_soon(pusher);
+  auto pop_task    = loop.call_soon(popper);
+
+  loop.run_until_complete(pop_task);
+}
+
+TEST(test_queue, fized_size_queue)
+{
+  using namespace std::chrono;
+
+  ell::EventLoop loop;
+  ell::Queue<int> queue(10); // maxsize
+  auto start = system_clock::now();
+
+  // Fully populate the queue.
+  for (int i = 0; i < 10; i++)
+    queue.push(i);
+
+  auto pusher = [&]()
+  {
+    // The queue is full. We shall wait.
+    queue.push(42);
+
+    // We should have waited for 1.5 second.
+    auto end     = system_clock::now();
+    auto elapsed = duration_cast<milliseconds>(end - start);
+    GASSERT(GE(elapsed.count(), 1500));
+  };
+
+  auto popper = [&]()
+  {
+    ell::sleep(std::chrono::milliseconds(1500));
+    for (int i = 0; i < 10; ++i)
+      queue.pop();
+
+    int last = queue.pop();
+    GASSERT(EQ(42, last));
   };
 
   auto pusher_task = loop.call_soon(pusher);

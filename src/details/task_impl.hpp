@@ -155,7 +155,7 @@ namespace ell
       void setup_coroutine(const Callable &callable)
       {
         auto attr = boost::coroutines::attributes();
-        attr.size = 1024 * 4;
+        attr.size = ELL_COROUTINE_STACK_SIZE;
 
         // We must now setup the boost coroutine object.
         // We will wrap the user callable into a coroutine, adding some
