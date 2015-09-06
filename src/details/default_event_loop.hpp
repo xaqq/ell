@@ -7,6 +7,7 @@
 #include "details/task_builder.hpp"
 #include "condition_variable"
 #include "details/task_sleep.hpp"
+#include "details/ell_detail.hpp"
 
 namespace ell
 {
@@ -24,6 +25,13 @@ namespace ell
     class DefaultEventLoop
     {
     public:
+      DefaultEventLoop()
+      {
+      }
+
+      DefaultEventLoop(const DefaultEventLoop &) = delete;
+      DefaultEventLoop(DefaultEventLoop &&o) = delete;
+
       TaskImplPtr current_task()
       {
         return current_task_;

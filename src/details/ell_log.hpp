@@ -29,3 +29,13 @@
 #else
 #define ELL_DEBUG(...)
 #endif
+
+
+#define ELL_ERROR(msg, ...)                                                              \
+  {                                                                                      \
+    auto logger = spdlog::get("ell_console");                                            \
+    if (logger)                                                                          \
+    {                                                                                    \
+      logger->error(msg, ##__VA_ARGS__);                                                 \
+    }                                                                                    \
+  }
