@@ -53,5 +53,7 @@ add_gtest_test(test_task_builder.cpp)
 add_gtest_test(test_sleep.cpp)
 add_gtest_test(test_queue.cpp)
 add_gtest_test(test_condition_variable.cpp)
+#add_gtest_test(test_task_cancel.cpp)
+add_gtest_test(test_task.cpp)
 # ctest cannot run this test correctly.
 create_test(test_signal_handler.cpp)

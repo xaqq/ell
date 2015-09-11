@@ -33,6 +33,15 @@ namespace ell
     details::get_current_event_loop()->current_task_suspend();
   }
 
+  template <typename... Tasks>
+  void wait_for(Tasks &&... tasks)
+  {
+    details::get_current_event_loop()->wait_for(tasks...);
+  }
+
+  /**
+   * Pause the coroutine for the given `duration`.
+   */
   template <typename Duration>
   void sleep(const Duration &duration)
   {

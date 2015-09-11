@@ -8,6 +8,7 @@
 #include "condition_variable"
 #include "details/task_sleep.hpp"
 #include "details/ell_detail.hpp"
+#include "details/signal_handler.hpp"
 
 namespace ell
 {
@@ -16,7 +17,7 @@ namespace ell
     /**
      * The default event loop.
      *
-     * The public method are public to the internal componenent
+     * The public method are public to the internal component
      * of the library.
      *
      * The end-user has a smaller API available, through the
@@ -24,6 +25,13 @@ namespace ell
      */
     class DefaultEventLoop
     {
+    private:
+      template <typename TaskT>
+      void wait_for_impl(TaskT &&task)
+      {
+        attach_wait_handler(task->impl_.wait_handler(), current_task_);
+      };
+
     public:
       DefaultEventLoop()
       {
@@ -90,6 +98,14 @@ namespace ell
         current_task_->suspend();
 
         return task->get_result();
+      }
+
+      template <typename... Tasks>
+      void wait_for(Tasks &&... tasks)
+      {
+        using expand_type = int[];
+        expand_type{(wait_for_impl(tasks), 0)...};
+        current_task_->suspend();
       }
 
       template <typename Callable>
