@@ -33,7 +33,13 @@ namespace ell
       };
 
     public:
+      SignalHandler sh_;
+
       DefaultEventLoop()
+          : sh_(SIGINT, [](int)
+                {
+                  ELL_DEBUG("EVENT LOOP SHALL STOP;");
+                })
       {
       }
 
@@ -130,15 +136,30 @@ namespace ell
         }
       }
 
+      template <typename T>
+      void cancel_task(const TaskPtr<T> &task)
+      {
+        ELL_TRACE("Task {} marked for cancellation.", task->impl_.id());
+        TaskImplPtr implptr(task, &task->impl_);
+        pending_cancellation_.insert(implptr);
+      }
+
     private:
       /**
        * Run the scheduler, effectively giving CPU time to some coroutine.
        */
       void schedule()
       {
+        process_pending_cancellation();
         handle_wait_handlers();
+        process_pending_cancellation();
+
         move_tasks();
+        process_pending_cancellation();
+
         wake_tasks();
+        process_pending_cancellation();
+        handle_wait_handlers();
         try_to_sleep();
 
         for (auto &task : active_)
@@ -156,6 +177,20 @@ namespace ell
           }
         }
         current_task_ = nullptr;
+        process_pending_cancellation();
+      }
+
+      void process_pending_cancellation()
+      {
+        for (auto &task : pending_cancellation_)
+        {
+          ELL_TRACE("PENDING CANCELLATION FOR {}", task->id());
+          task->pending_cancel_ = true;
+          while (task->wait_count())
+            task->decr_wait_count();
+          dirty_tasks_.insert(task);
+        }
+        pending_cancellation_.clear();
       }
 
       /**
@@ -266,16 +301,16 @@ namespace ell
       }
 
     private:
-      using TaskQueue    = std::vector<TaskImplPtr>;
-      using TaskQueueNew = std::unordered_set<TaskImplPtr>;
+      using TaskQueue = std::vector<TaskImplPtr>;
+      using TaskSet   = std::unordered_set<TaskImplPtr>;
 
       /**
        * Must be first attribute, so it is destroyed last.
        */
       TaskBuilder builder_;
 
-      TaskQueueNew active_;
-      TaskQueueNew inactive_;
+      TaskSet active_;
+      TaskSet inactive_;
 
       /**
        * Newly created task that needs to be pushed into the active_task_ vector.
@@ -293,7 +328,13 @@ namespace ell
        * Tasks whose WaitHandler list changed
        * since we loop iteration.
        */
-      TaskQueueNew dirty_tasks_;
+      TaskSet dirty_tasks_;
+
+      /**
+       * Tasks that shall received an ex::Cancelled
+       * next loop turn.
+       */
+      TaskSet pending_cancellation_;
 
       /**
        * List of `TaskSleep`

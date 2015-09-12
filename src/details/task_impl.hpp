@@ -12,6 +12,7 @@
 #include "details/result_holder.hpp"
 #include "details/wait_handler.hpp"
 #include "details/ell_log.hpp"
+#include "exceptions/cancelled.hpp"
 
 namespace ell
 {
@@ -40,6 +41,8 @@ namespace ell
           , wait_count_(0)
           , id_(next_id())
           , is_active_(false)
+          , cancelled_(false)
+          , pending_cancel_(false)
       {
         setup_coroutine(callable);
       }
@@ -72,6 +75,12 @@ namespace ell
       void suspend()
       {
         (*yield_)();
+        // maybe we have been cancelled
+        if (pending_cancel_)
+        {
+          pending_cancel_ = false;
+          throw ex::Cancelled();
+        }
       }
 
       bool is_complete() const
@@ -130,6 +139,20 @@ namespace ell
       {
         ELL_ASSERT(wait_count_ > 0, "wait_count cannot be negative.");
         wait_count_--;
+      }
+
+      /**
+       * Something cancelled the task.
+       */
+      void cancel()
+      {
+        pending_cancel_ = true;
+        // get_current_event_loop()->request_task_cancel(this);
+      }
+
+      bool cancelled() const
+      {
+        return cancelled_;
       }
 
     private:
@@ -212,6 +235,12 @@ namespace ell
 
       bool is_active_;
 
+      bool cancelled_;
+
+    public:
+      bool pending_cancel_;
+
+    private:
       /**
        * Gives a unique ID to each task.
        */

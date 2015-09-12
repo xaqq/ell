@@ -40,6 +40,11 @@ namespace ell
       return impl_.get_result<ReturnType>();
     }
 
+    void cancel()
+    {
+      impl_.cancel();
+    }
+
   private:
     details::TaskImpl impl_;
 

@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.0)
 project(ell_tests)
 
-set(ELL_ENABLE_TRACE 1)
-set(ELL_ENABLE_DEBUG 1)
+set(ELL_ENABLE_TRACE 0)
+set(ELL_ENABLE_DEBUG 0)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -W -Wall -O0 -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -W -Wall -O3 -g")
 
 if (ELL_ENABLE_DEBUG)
    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DSPDLOG_DEBUG_ON=1 -DELL_ENABLE_DEBUG=1")
@@ -53,7 +53,7 @@ add_gtest_test(test_task_builder.cpp)
 add_gtest_test(test_sleep.cpp)
 add_gtest_test(test_queue.cpp)
 add_gtest_test(test_condition_variable.cpp)
-#add_gtest_test(test_task_cancel.cpp)
+add_gtest_test(test_task_cancel.cpp)
 add_gtest_test(test_task.cpp)
 # ctest cannot run this test correctly.
 create_test(test_signal_handler.cpp)

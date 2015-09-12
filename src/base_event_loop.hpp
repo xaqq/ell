@@ -37,6 +37,12 @@ namespace ell
       return impl_.run_until_complete(task);
     }
 
+    template <typename T>
+    void cancel_task(const TaskPtr<T> &task)
+    {
+      impl_.cancel_task(task);
+    }
+
   private:
     EventLoopImpl impl_;
   };
