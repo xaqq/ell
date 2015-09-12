@@ -183,28 +183,26 @@ namespace ell
         // We must now setup the boost coroutine object.
         // We will wrap the user callable into a coroutine, adding some
         // code to handles return values, exceptions, and initialization.
-        coroutine_ = CoroutineCall(
-            [&](CoroutineYield &yield)
-            {
-              // Perform some initialization task, then yield.
+        coroutine_ =
+            CoroutineCall([ this, callable_cpy = callable ](CoroutineYield & yield)
+                          {
+                            // We need a copy of the callable otherwise
+                            // it may go out of scope and become a dangling
+                            // reference when we call `wrap_user_call()`;
+                            // Perform some initialization task, then yield.
+                            this->yield_ = &yield;
+                            yield();
 
-              // Save a pointer to self while the lambda capture has a correct
-              // reference to "task".
-              TaskImpl *self = this; // While the coroutine is alive, the TaskImpl
-                                     // obj is alive too.
-              self->yield_ = &yield;
-              yield();
-
-              try
-              {
-                wrap_user_call(callable);
-              }
-              catch (const std::exception &)
-              {
-                result_.store_exception(std::current_exception());
-              }
-            },
-            attr, valgrind_stack_allocator());
+                            try
+                            {
+                              wrap_user_call(callable_cpy);
+                            }
+                            catch (const std::exception &)
+                            {
+                              result_.store_exception(std::current_exception());
+                            }
+                          },
+                          attr, valgrind_stack_allocator());
         // Run the coroutine to perform initialization task.
         coroutine_();
       }
