@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(ell_tests)
 
 set(ELL_ENABLE_TRACE 0)
-set(ELL_ENABLE_DEBUG 0)
+set(ELL_ENABLE_DEBUG 1)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -W -Wall -O3 -g")
 
@@ -55,5 +55,6 @@ add_gtest_test(test_queue.cpp)
 add_gtest_test(test_condition_variable.cpp)
 add_gtest_test(test_task_cancel.cpp)
 add_gtest_test(test_task.cpp)
+add_gtest_test(test_intrusive_ptr.cpp)
 # ctest cannot run this test correctly.
 create_test(test_signal_handler.cpp)
